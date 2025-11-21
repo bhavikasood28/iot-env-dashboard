@@ -52,16 +52,41 @@ const loadThresholds = () => {
   }
 };
 
-// TEMPORARY: predicted temperature values
+// TEMPORARY: predicted temperature values (naive drift forecast + error)
 const generatePredictedSeries = (history) => {
-  return history.map((d) => ({
-    ts: d.ts,
-    actual: d.temperature ?? null,
-    predicted:
-      d.temperature != null
-        ? d.temperature + (Math.random() * 4 - 2)
-        : null,
-  }));
+  if (!history || history.length < 3) return [];
+
+  // Use the last up to 20 readings for a simple trend
+  const base = history.slice(-20);
+
+  const numeric = base
+    .map((d) => ({
+      ts: d.ts,
+      val:
+        d.temperature !== null && d.temperature !== undefined
+          ? Number(d.temperature)
+          : null,
+    }))
+    .filter((d) => d.val !== null);
+
+  if (numeric.length < 2) return [];
+
+  const first = numeric[0];
+  const last = numeric[numeric.length - 1];
+  const steps = numeric.length - 1;
+  const slope = (last.val - first.val) / Math.max(steps, 1);
+
+  // Naive drift: straight line from first → last, plus error
+  return numeric.map((p, idx) => {
+    const predicted = first.val + slope * idx;
+    const actual = p.val;
+    return {
+      ts: p.ts,
+      actual,
+      predicted,
+      error: predicted - actual, // signed error
+    };
+  });
 };
 
 /* ------------------------------------------------------------------
@@ -569,9 +594,9 @@ const Dashboard = () => {
             <SensorChart
               data={history}
               lines={[
-                { key: "temperature", name: "Temperature (°F)" },
-                { key: "humidity", name: "Humidity (%)" },
-              ]}
+                { key: "temperature", name: "Temperature (°F)", stroke: "#e63946" }, // red
+                { key: "humidity", name: "Humidity (%)", stroke: "#457b9d" },       // blue
+              ]}                       
             />
           </ChartBlock>
 
@@ -582,10 +607,10 @@ const Dashboard = () => {
             <SensorChart
               data={history}
               lines={[
-                { key: "airQuality", name: "Air Quality (AQI)" },
-                { key: "co2", name: "CO₂ (ppm)" },
-                { key: "luminosity", name: "Luminosity (lx)" },
-              ]}
+                { key: "airQuality", name: "Air Quality (AQI)", stroke: "#2a9d8f" }, // teal
+                { key: "co2", name: "CO₂ (ppm)", stroke: "#8e44ad" },               // purple
+                { key: "luminosity", name: "Luminosity (lx)", stroke: "#f4a261" },  // orange
+              ]}              
             />
           </ChartBlock>
 
@@ -597,9 +622,17 @@ const Dashboard = () => {
             <SensorChart
               data={predictedSeries}
               lines={[
-                { key: "actual", name: "Actual Temperature (°F)" },
-                { key: "predicted", name: "Predicted Temperature (°F)" },
-              ]}
+                { key: "actual", name: "Actual Temperature (°F)", stroke: "#2a9d8f" },   // teal
+                { key: "predicted", name: "Predicted Temperature (°F)", stroke: "#e9c46a", strokeDasharray: "5 5" }, // mustard
+                {
+                  key: "error",
+                  name: "Prediction Error",
+                  stroke: "#ff4d4d",
+                  strokeWidth: 1,
+                  strokeDasharray: "4 4",
+                  opacity: 0.6,
+                },
+              ]}              
             />
           </ChartBlock>
         </section>

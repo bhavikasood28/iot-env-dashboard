@@ -30,15 +30,17 @@ const SensorChart = ({ data, lines }) => {
 
           {lines.map((line) => (
             <Line
-              key={line.key}
-              type="monotone"
-              dataKey={line.key}
-              name={line.name}
-              dot={false}
-              strokeWidth={2}
-              // Recharts needs a stroke color; we just pick from a small list
-              stroke={line.stroke || undefined}
-            />
+            key={line.key}
+            type="monotone"
+            dataKey={line.key}
+            name={line.name}
+            dot={false}
+            strokeWidth={line.strokeWidth || 2}
+            stroke={line.stroke || undefined}
+            strokeDasharray={line.strokeDasharray}
+            strokeOpacity={line.opacity}
+          />          
+          
           ))}
         </LineChart>
       </ResponsiveContainer>
